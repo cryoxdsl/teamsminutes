@@ -23,8 +23,9 @@
     --bg-surface: #f8f8f8;
     --radius: 8px;
     --radius-lg: 12px;
+    --font-mono: "Consolas", "Courier New", monospace;
   }
-  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; position: relative; }
 
   /* Header */
   .header { background: var(--bg); border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: center; gap: 10px; height: 52px; flex-shrink: 0; }
@@ -102,9 +103,46 @@
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* API Key setup screen */
+  .api-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg); z-index: 100; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  .api-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 32px; max-width: 420px; width: 100%; }
+  .api-card-icon { width: 40px; height: 40px; background: var(--purple-light); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+  .api-card-icon svg { width: 20px; height: 20px; stroke: var(--purple); fill: none; stroke-width: 2; }
+  .api-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .api-card p { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 18px; }
+  .api-card label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px; }
+  .api-key-input-wrap { display: flex; gap: 8px; margin-bottom: 12px; }
+  .api-key-input-wrap input { flex: 1; font-family: var(--font-mono, monospace); font-size: 13px; }
+  .api-notice { font-size: 11px; color: var(--text-hint); line-height: 1.5; display: flex; gap: 6px; align-items: flex-start; }
+  .api-notice svg { flex-shrink: 0; margin-top: 1px; }
+  .api-settings-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--text-hint); display: flex; align-items: center; gap: 4px; font-size: 12px; font-family: inherit; margin-left: auto; }
+  .api-settings-btn:hover { color: var(--text-muted); }
+  .settings-bar { display: flex; align-items: center; padding: 0 16px; height: 36px; border-bottom: 1px solid var(--border); background: var(--bg-surface); }
+
 </style>
 </head>
 <body>
+
+
+<div class="api-overlay" id="apiOverlay" style="display:none">
+  <div class="api-card">
+    <div class="api-card-icon">
+      <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+    </div>
+    <h2>Configurer votre clé API</h2>
+    <p>Cette application utilise l'IA Claude (Anthropic) pour générer les comptes-rendus. Votre clé est stockée uniquement dans votre navigateur, jamais sur un serveur.</p>
+    <label>Clé API Anthropic</label>
+    <div class="api-key-input-wrap">
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-api03-..." autocomplete="off" spellcheck="false">
+      <button class="btn btn-primary" onclick="saveApiKey()">Enregistrer</button>
+    </div>
+    <div class="api-notice">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      Obtenez votre clé sur <a href="https://console.anthropic.com/" style="color:var(--purple);text-decoration:none">console.anthropic.com</a> → API Keys. La clé commence par <code style="font-size:11px;background:var(--bg-surface);padding:1px 4px;border-radius:3px">sk-ant-</code>
+    </div>
+  </div>
+</div>
 
 <div class="header">
   <div class="header-icon">
@@ -121,7 +159,11 @@
       Copier le CR
     </button>
   </div>
-</div>
+  <button class="api-settings-btn" onclick="showApiSetup()" title="Configurer la clé API">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      API
+    </button>
+  </div>
 
 <div class="meta-bar">
   <input class="meta-input" id="meetingTitle" placeholder="Titre de la réunion" style="flex: 2; min-width: 160px;">
@@ -226,6 +268,33 @@ microsoftTeams.app.initialize().then(() => {
   });
 }).catch(() => {});
 
+// ===== GESTION CLÉ API (localStorage) =====
+function getApiKey() {
+  return localStorage.getItem('meeting_cr_api_key') || '';
+}
+function saveApiKey() {
+  const val = document.getElementById('apiKeyInput').value.trim();
+  if (!val || !val.startsWith('sk-ant-')) {
+    alert('La clé doit commencer par sk-ant-');
+    return;
+  }
+  localStorage.setItem('meeting_cr_api_key', val);
+  document.getElementById('apiOverlay').style.display = 'none';
+}
+function showApiSetup() {
+  const k = getApiKey();
+  const inp = document.getElementById('apiKeyInput');
+  inp.value = '';
+  inp.placeholder = k ? (k.substring(0, 14) + '...') : 'sk-ant-api03-...';
+  document.getElementById('apiOverlay').style.display = 'flex';
+}
+function checkApiKey() {
+  if (!getApiKey()) showApiSetup();
+}
+// ==========================================
+
+checkApiKey();
+
 // Date par défaut
 document.getElementById('meetingDate').value = new Date().toISOString().split('T')[0];
 
@@ -262,7 +331,7 @@ function setStatus(source, state, text) {
 // ===== CLEF API =====
 // Remplacez la valeur ci-dessous par votre clé API Anthropic
 // Obtenez-la sur : https://console.anthropic.com/
-const ANTHROPIC_API_KEY = 'VOTRE_CLE_API_ICI';
+const ANTHROPIC_API_KEY = getApiKey();
 // ====================
 
 async function generateCR(source) {
@@ -292,7 +361,7 @@ async function generateCR(source) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': getApiKey(),
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-allow-browser': 'true'
       },

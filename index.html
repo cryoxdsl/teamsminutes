@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting CR</title>
+<script src="https://res.cdn.office.net/teams-js/2.22.0/js/MicrosoftTeams.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --purple: #5B4FD4;
+    --purple-dark: #4A3EC4;
+    --purple-light: #EEF0FD;
+    --green-light: #EAF3DE;
+    --green-dark: #27500A;
+    --blue-light: #E6F1FB;
+    --blue-dark: #0C447C;
+    --text: #1a1a1a;
+    --text-muted: #6b6b6b;
+    --text-hint: #9b9b9b;
+    --border: rgba(0,0,0,0.12);
+    --bg: #ffffff;
+    --bg-surface: #f8f8f8;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* Header */
+  .header { background: var(--bg); border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: center; gap: 10px; height: 52px; flex-shrink: 0; }
+  .header-icon { width: 30px; height: 30px; background: var(--purple); border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .header-icon svg { width: 16px; height: 16px; fill: white; }
+  .header-title { font-size: 15px; font-weight: 600; color: var(--text); }
+  .header-actions { margin-left: auto; display: flex; gap: 8px; }
+
+  /* Meta */
+  .meta-bar { display: flex; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; flex-wrap: wrap; background: var(--bg-surface); }
+  .meta-input { border: 1px solid var(--border); border-radius: var(--radius); padding: 5px 10px; font-size: 13px; color: var(--text); background: var(--bg); font-family: inherit; outline: none; flex: 1; min-width: 120px; transition: border-color 0.15s; }
+  .meta-input:focus { border-color: var(--purple); }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
+  .tab { padding: 10px 16px; font-size: 13px; cursor: pointer; color: var(--text-muted); border-bottom: 2px solid transparent; transition: all 0.15s; user-select: none; display: flex; align-items: center; gap: 6px; font-family: inherit; background: none; border-top: none; border-left: none; border-right: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 600; }
+
+  /* Panels */
+  .panel { display: none; flex: 1; min-height: 0; }
+  .panel.active { display: flex; }
+
+  /* Split layout */
+  .split { display: grid; grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; }
+  .pane { display: flex; flex-direction: column; border-right: 1px solid var(--border); min-height: 0; }
+  .pane:last-child { border-right: none; }
+  .pane-header { padding: 9px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-shrink: 0; background: var(--bg-surface); }
+  .pane-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .word-count { font-size: 11px; color: var(--text-hint); margin-left: auto; }
+
+  /* Textarea */
+  textarea { flex: 1; border: none; outline: none; resize: none; padding: 14px; font-size: 14px; line-height: 1.65; color: var(--text); background: var(--bg); font-family: inherit; min-height: 0; }
+  textarea::placeholder { color: var(--text-hint); }
+
+  /* CR Output */
+  .cr-output { flex: 1; overflow-y: auto; padding: 14px; min-height: 0; }
+  .cr-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 10px; color: var(--text-hint); font-size: 13px; text-align: center; padding: 20px; }
+  .cr-empty-icon { font-size: 32px; opacity: 0.35; }
+  .cr-content h1 { font-size: 16px; font-weight: 600; color: var(--text); margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .cr-content h2 { font-size: 13px; font-weight: 600; color: var(--text); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .cr-content p { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.6; }
+  .cr-content ul { padding-left: 0; margin-bottom: 8px; list-style: none; }
+  .cr-content li { font-size: 13px; color: var(--text-muted); margin-bottom: 6px; line-height: 1.5; display: flex; align-items: flex-start; gap: 6px; }
+  .cr-content li::before { content: '–'; color: var(--text-hint); flex-shrink: 0; margin-top: 1px; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 5px; flex-shrink: 0; }
+  .badge-action { background: var(--green-light); color: var(--green-dark); }
+  .badge-decision { background: var(--blue-light); color: var(--blue-dark); }
+
+  /* Toolbar */
+  .toolbar { padding: 8px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: center; flex-shrink: 0; background: var(--bg-surface); }
+  .btn { border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 13px; padding: 6px 12px; border-radius: var(--radius); cursor: pointer; display: flex; align-items: center; gap: 6px; font-family: inherit; transition: background 0.12s; white-space: nowrap; }
+  .btn:hover:not(:disabled) { background: var(--bg-surface); }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-primary { background: var(--purple); border-color: var(--purple); color: white; font-weight: 600; }
+  .btn-primary:hover:not(:disabled) { background: var(--purple-dark); }
+  .btn-primary:disabled { background: var(--purple); }
+  .status-text { font-size: 12px; color: var(--text-hint); margin-left: auto; display: flex; align-items: center; gap: 5px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-hint); flex-shrink: 0; }
+  .dot.loading { background: var(--purple); animation: pulse 1s infinite; }
+  .dot.done { background: #3B6D11; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Transcript panel */
+  .transcript-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+  /* Spinner */
+  @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .spinner { display: inline-block; animation: spin 1s linear infinite; }
+
+  /* Copy success */
+  .copy-success { background: #EAF3DE !important; border-color: #3B6D11 !important; color: #27500A !important; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9l2 2 4-4"/>
+    </svg>
+  </div>
+  <div>
+    <div class="header-title">Meeting CR</div>
+  </div>
+  <div class="header-actions">
+    <button class="btn" onclick="copyCR()" id="copyBtn" disabled>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      Copier le CR
+    </button>
+  </div>
+</div>
+
+<div class="meta-bar">
+  <input class="meta-input" id="meetingTitle" placeholder="Titre de la réunion" style="flex: 2; min-width: 160px;">
+  <input class="meta-input" id="meetingDate" type="date" style="max-width: 150px;">
+  <input class="meta-input" id="meetingParticipants" placeholder="Participants" style="flex: 2; min-width: 140px;">
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('notes')" id="tab-notes">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    Notes en direct
+  </button>
+  <button class="tab" onclick="switchTab('transcript')" id="tab-transcript">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+    Transcript brut
+  </button>
+</div>
+
+<!-- Panel Notes -->
+<div class="panel active" id="panel-notes">
+  <div class="split">
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-label">Vos notes</span>
+        <span class="word-count" id="notesCount">0 mot</span>
+      </div>
+      <textarea id="notesArea" placeholder="Prenez vos notes ici pendant la réunion...
+
+Exemples :
+- Décision : budget Q3 validé à 45k€
+- Action : Paul prépare la synthèse avant vendredi
+- Question en suspens : validation DG ?
+- Accord sur le planning de déploiement" oninput="updateCount('notes')"></textarea>
+      <div class="toolbar">
+        <button class="btn btn-primary" onclick="generateCR('notes')" id="genBtnNotes">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          Générer le CR
+        </button>
+        <button class="btn" onclick="clearArea('notesArea', 'notes')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Effacer
+        </button>
+        <span class="status-text" id="statusNotes"><span class="dot" id="dotNotes" style="display:none"></span><span id="statusTextNotes"></span></span>
+      </div>
+    </div>
+    <div class="pane">
+      <div class="pane-header">
+        <span class="pane-label">Compte-rendu généré</span>
+      </div>
+      <div class="cr-output" id="crOutput">
+        <div class="cr-empty" id="crEmpty">
+          <div class="cr-empty-icon">✦</div>
+          <div>Le CR apparaîtra ici une fois généré</div>
+          <div style="font-size:12px;color:var(--text-hint)">Rédigez vos notes ou collez un transcript,<br>puis cliquez sur « Générer le CR »</div>
+        </div>
+        <div class="cr-content" id="crContent" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel Transcript -->
+<div class="panel" id="panel-transcript">
+  <div class="transcript-panel">
+    <div class="pane-header">
+      <span class="pane-label">Transcript brut</span>
+      <span class="word-count" id="transcriptCount">0 mot</span>
+    </div>
+    <textarea id="transcriptArea" placeholder="Collez ici le transcript de votre réunion Teams, Zoom ou toute autre source...
+
+Format accepté :
+[HH:MM] Prénom Nom : texte...
+ou simplement du texte brut.
+
+L'IA analysera le contenu pour extraire les décisions, actions et points clés." oninput="updateCount('transcript')" style="flex:1; min-height: 0;"></textarea>
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="generateCR('transcript')" id="genBtnTranscript">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        Générer le CR depuis le transcript
+      </button>
+      <button class="btn" onclick="clearArea('transcriptArea', 'transcript')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Effacer
+      </button>
+      <span class="status-text" id="statusTranscript"><span class="dot" id="dotTranscript" style="display:none"></span><span id="statusTextTranscript"></span></span>
+    </div>
+  </div>
+</div>
+
+<script>
+// Init Teams SDK
+microsoftTeams.app.initialize().then(() => {
+  microsoftTeams.app.getContext().then(ctx => {
+    if (ctx?.user?.displayName) {
+      const p = document.getElementById('meetingParticipants');
+      if (!p.value) p.placeholder = 'Ex: ' + ctx.user.displayName + ', ...';
+    }
+    if (ctx?.meeting?.id) {
+      const t = document.getElementById('meetingTitle');
+      if (!t.value) t.value = 'Réunion Teams';
+    }
+  });
+}).catch(() => {});
+
+// Date par défaut
+document.getElementById('meetingDate').value = new Date().toISOString().split('T')[0];
+
+let crRaw = '';
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+}
+
+function updateCount(source) {
+  const id = source === 'notes' ? 'notesArea' : 'transcriptArea';
+  const countId = source === 'notes' ? 'notesCount' : 'transcriptCount';
+  const w = document.getElementById(id).value.trim().split(/\s+/).filter(Boolean).length;
+  document.getElementById(countId).textContent = w + ' mot' + (w > 1 ? 's' : '');
+}
+
+function clearArea(id, source) {
+  document.getElementById(id).value = '';
+  updateCount(source);
+}
+
+function setStatus(source, state, text) {
+  const sfx = source === 'notes' ? 'Notes' : 'Transcript';
+  const dot = document.getElementById('dot' + sfx);
+  const st = document.getElementById('statusText' + sfx);
+  dot.style.display = text ? 'block' : 'none';
+  dot.className = 'dot' + (state === 'loading' ? ' loading' : state === 'done' ? ' done' : '');
+  st.textContent = text || '';
+}
+
+// ===== CLEF API =====
+// Remplacez la valeur ci-dessous par votre clé API Anthropic
+// Obtenez-la sur : https://console.anthropic.com/
+const ANTHROPIC_API_KEY = 'VOTRE_CLE_API_ICI';
+// ====================
+
+async function generateCR(source) {
+  const content = source === 'notes'
+    ? document.getElementById('notesArea').value.trim()
+    : document.getElementById('transcriptArea').value.trim();
+
+  if (!content) { alert('Aucun contenu à analyser.'); return; }
+
+  const title = document.getElementById('meetingTitle').value.trim() || 'Réunion';
+  const date = document.getElementById('meetingDate').value;
+  const participants = document.getElementById('meetingParticipants').value.trim();
+
+  const btn = document.getElementById('genBtn' + (source === 'notes' ? 'Notes' : 'Transcript'));
+  btn.disabled = true;
+  setStatus(source, 'loading', 'Génération en cours...');
+  document.getElementById('crEmpty').style.display = 'none';
+  document.getElementById('crContent').innerHTML = '<div style="text-align:center;padding:30px;color:#9b9b9b"><div class="spinner" style="font-size:24px">⟳</div><br>Analyse en cours...</div>';
+  document.getElementById('crContent').style.display = 'block';
+  document.getElementById('copyBtn').disabled = true;
+
+  const sourceLabel = source === 'notes' ? 'notes prises pendant la réunion' : 'transcript brut de la réunion';
+  const participantsLine = participants ? 'Participants : ' + participants : '';
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-allow-browser': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: 'Tu es un assistant spécialisé dans la rédaction de comptes-rendus de réunion professionnels en français. Tu produis des CR clairs, structurés et directement utilisables. Tu réponds UNIQUEMENT en JSON valide, sans backticks ni markdown. Format : {"titre":"...","date":"...","participants":"...","contexte":"...","points_discutes":["..."],"decisions":["..."],"actions":[{"qui":"...","quoi":"...","echeance":"..."}],"prochaine_reunion":"...","remarques":"..."}',
+        messages: [{
+          role: 'user',
+          content: 'Rédige un CR de réunion à partir des ' + sourceLabel + ' suivantes.\n\nRéunion : ' + title + '\nDate : ' + date + '\n' + participantsLine + '\n\nContenu :\n' + content
+        }]
+      })
+    });
+
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const raw = (data.content || []).map(b => b.text || '').join('').replace(/```json|```/g, '').trim();
+    const cr = JSON.parse(raw);
+    renderCR(cr, title, date, participants);
+    crRaw = buildTextCR(cr, title, date, participants);
+    document.getElementById('copyBtn').disabled = false;
+    setStatus(source, 'done', 'CR généré');
+  } catch(e) {
+    document.getElementById('crContent').innerHTML = '<div style="color:#993c1d;font-size:13px;padding:14px;background:#faece7;border-radius:8px;">⚠️ Erreur : ' + (e.message || 'Vérifiez votre clé API Anthropic dans le fichier tab.html.') + '</div>';
+    setStatus(source, '', '');
+  }
+
+  btn.disabled = false;
+}
+
+function fmtDate(d) {
+  if (!d) return '';
+  const p = d.split('-');
+  return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : d;
+}
+
+function renderCR(cr, title, date, participants) {
+  let html = '<h1>' + (cr.titre || title) + '</h1>';
+  const meta = [];
+  if (date) meta.push('📅 ' + fmtDate(date));
+  if (cr.participants || participants) meta.push('👥 ' + (cr.participants || participants));
+  if (meta.length) html += '<p style="font-size:12px;color:#9b9b9b;margin-bottom:14px">' + meta.join(' &nbsp;·&nbsp; ') + '</p>';
+
+  if (cr.contexte) html += '<h2>Contexte</h2><p>' + cr.contexte + '</p>';
+  if (cr.points_discutes?.length) {
+    html += '<h2>Points discutés</h2><ul>';
+    cr.points_discutes.forEach(p => { html += '<li>' + p + '</li>'; });
+    html += '</ul>';
+  }
+  if (cr.decisions?.length) {
+    html += '<h2>Décisions</h2><ul>';
+    cr.decisions.forEach(d => { html += '<li><span class="badge badge-decision">Décision</span>' + d + '</li>'; });
+    html += '</ul>';
+  }
+  if (cr.actions?.length) {
+    html += '<h2>Actions</h2><ul>';
+    cr.actions.forEach(a => {
+      let line = '<span class="badge badge-action">Action</span>' + (a.quoi || '');
+      if (a.qui) line += ' <strong>' + a.qui + '</strong>';
+      if (a.echeance) line += ' <span style="color:#9b9b9b;font-size:12px">(' + a.echeance + ')</span>';
+      html += '<li>' + line + '</li>';
+    });
+    html += '</ul>';
+  }
+  if (cr.prochaine_reunion) html += '<h2>Prochaine réunion</h2><p>' + cr.prochaine_reunion + '</p>';
+  if (cr.remarques) html += '<h2>Remarques</h2><p>' + cr.remarques + '</p>';
+
+  document.getElementById('crContent').innerHTML = html;
+}
+
+function buildTextCR(cr, title, date, participants) {
+  let txt = '# ' + (cr.titre || title) + '\n';
+  if (date) txt += 'Date : ' + fmtDate(date) + '\n';
+  if (participants || cr.participants) txt += 'Participants : ' + (cr.participants || participants) + '\n';
+  txt += '\n';
+  if (cr.contexte) txt += '## Contexte\n' + cr.contexte + '\n\n';
+  if (cr.points_discutes?.length) { txt += '## Points discutés\n'; cr.points_discutes.forEach(p => txt += '- ' + p + '\n'); txt += '\n'; }
+  if (cr.decisions?.length) { txt += '## Décisions\n'; cr.decisions.forEach(d => txt += '- ' + d + '\n'); txt += '\n'; }
+  if (cr.actions?.length) {
+    txt += '## Actions\n';
+    cr.actions.forEach(a => {
+      let l = '- ' + (a.quoi || '');
+      if (a.qui) l += ' (' + a.qui;
+      if (a.echeance) l += ', ' + a.echeance;
+      if (a.qui) l += ')';
+      txt += l + '\n';
+    });
+    txt += '\n';
+  }
+  if (cr.prochaine_reunion) txt += '## Prochaine réunion\n' + cr.prochaine_reunion + '\n\n';
+  if (cr.remarques) txt += '## Remarques\n' + cr.remarques + '\n';
+  return txt;
+}
+
+function copyCR() {
+  if (!crRaw) return;
+  const btn = document.getElementById('copyBtn');
+  navigator.clipboard.writeText(crRaw).then(() => {
+    btn.classList.add('copy-success');
+    btn.innerHTML = '✓ Copié !';
+    setTimeout(() => {
+      btn.classList.remove('copy-success');
+      btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copier le CR';
+    }, 2500);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = crRaw;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✓ Copié !';
+    setTimeout(() => { btn.textContent = 'Copier le CR'; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
